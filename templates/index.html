@@ -116,9 +116,10 @@
       if (savedOnly) status.textContent = songs.length ? 'เพลงที่บันทึกไว้' : 'ยังไม่มีเพลงที่บันทึกไว้';
     }
 
-    async function doSearch() {
+    async function doSearch(fromVoice = false) {
       const q = queryInput.value.trim();
       resultsDiv.innerHTML = ''; emptyDiv.hidden = true; count.textContent = '';
+      if (!fromVoice) transcript.classList.remove('visible');
       if (!q) { status.textContent = 'พิมพ์ชื่อเพลง เนื้อเพลง หรือกดไมค์เพื่อเริ่มค้นหา'; return; }
       status.textContent = 'กำลังค้นหา...';
       try {
@@ -149,7 +150,7 @@
         transcriptText.textContent = spokenText || 'ระบบไม่ได้ยินคำร้อง';
         transcript.classList.add('visible');
         status.textContent = 'รับข้อความแล้ว กำลังค้นหาเพลง...';
-        doSearch();
+        doSearch(true);
       };
       recognition.onerror = event => { status.textContent = event.error === 'not-allowed' ? 'กรุณาอนุญาตให้เว็บไซต์ใช้ไมโครโฟน' : 'ฟังเสียงไม่สำเร็จ ลองใหม่อีกครั้ง'; };
       recognition.onnomatch = () => { status.textContent = 'ฟังเสียงได้ แต่แปลงเป็นคำร้องไม่ได้ ลองร้องให้ชัดขึ้น'; };
