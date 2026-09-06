@@ -1,9 +1,19 @@
+import os
+
 from flask import Flask, jsonify, render_template, request
 
 from search import LyricsSearcher
 
 app = Flask(__name__)
-searcher = LyricsSearcher(model_dir="output")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+searcher = None
+
+
+def get_searcher():
+    global searcher
+    if searcher is None:
+        searcher = LyricsSearcher(model_dir=os.path.join(BASE_DIR, "output"))
+    return searcher
 
 
 @app.route("/")
@@ -13,7 +23,8 @@ def index():
 
 @app.route("/song/<int:song_id>")
 def song_page(song_id):
-    matches = searcher.songs[searcher.songs["song_id"] == song_id]
+    current_searcher = get_searcher()
+    matches = current_searcher.songs[current_searcher.songs["song_id"] == song_id]
     if matches.empty:
         return render_template("song.html", song=None), 404
 
@@ -32,13 +43,14 @@ def api_search():
     query = request.args.get("q", "").strip()
     if not query:
         return jsonify({"results": []})
-    results = searcher.search(query, top_k=5)
+    results = get_searcher().search(query, top_k=5)
     return jsonify({"results": results})
 
 
 @app.route("/api/songs/<int:song_id>")
 def api_song(song_id):
-    matches = searcher.songs[searcher.songs["song_id"] == song_id]
+    current_searcher = get_searcher()
+    matches = current_searcher.songs[current_searcher.songs["song_id"] == song_id]
     if matches.empty:
         return jsonify({"error": "Song not found"}), 404
 
@@ -54,4 +66,4 @@ def api_song(song_id):
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=int(os.environ.get("PORT", "5000")))
