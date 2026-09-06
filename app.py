@@ -1,4 +1,5 @@
 import os
+from functools import lru_cache
 
 from flask import Flask, jsonify, render_template, request
 
@@ -9,11 +10,9 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 searcher = None
 
 
+@lru_cache(maxsize=1)
 def get_searcher():
-    global searcher
-    if searcher is None:
-        searcher = LyricsSearcher(model_dir=os.path.join(BASE_DIR, "output"))
-    return searcher
+    return LyricsSearcher(model_dir=os.path.join(BASE_DIR, "output"))
 
 
 @app.route("/")
