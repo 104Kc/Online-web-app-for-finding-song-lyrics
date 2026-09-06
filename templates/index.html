@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>ค้นหาเพลงจากเนื้อเพลง</title>
+  <style>
+    body {
+      font-family: "Sarabun", "Tahoma", sans-serif;
+      max-width: 600px;
+      margin: 60px auto;
+      padding: 0 20px;
+      background: #faf7f2;
+      color: #222;
+    }
+    h1 { font-size: 22px; }
+    input {
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      box-sizing: border-box;
+    }
+    button {
+      margin-top: 10px;
+      padding: 10px 18px;
+      font-size: 15px;
+      border: none;
+      border-radius: 8px;
+      background: #4a4a8f;
+      color: white;
+      cursor: pointer;
+    }
+    .result {
+      margin-top: 14px;
+      padding: 12px 16px;
+      background: white;
+      border-radius: 8px;
+      border: 1px solid #eee;
+    }
+    .score { color: #888; font-size: 13px; }
+    #empty { color: #999; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <h1>🎵 ร้องเนื้อเพลงที่จำได้ ให้ฉันช่วยหาว่าเพลงอะไร</h1>
+  <input id="query" placeholder="พิมพ์เนื้อเพลงที่จำได้ เช่น 'ฝนตกที่หน้าต่างบ้านฉัน'">
+  <button onclick="doSearch()">ค้นหา</button>
+
+  <div id="results"></div>
+  <div id="empty" style="display:none;">ไม่พบเพลงที่ใกล้เคียง ลองพิมพ์เนื้อเพลงส่วนอื่นดูนะ</div>
+
+  <script>
+    async function doSearch() {
+      const q = document.getElementById('query').value.trim();
+      const resultsDiv = document.getElementById('results');
+      const emptyDiv = document.getElementById('empty');
+      resultsDiv.innerHTML = '';
+      emptyDiv.style.display = 'none';
+      if (!q) return;
+
+      const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+      const data = await res.json();
+
+      if (data.results.length === 0) {
+        emptyDiv.style.display = 'block';
+        return;
+      }
+
+      data.results.forEach(r => {
+        const div = document.createElement('div');
+        div.className = 'result';
+        div.innerHTML = `<strong>${r.title}</strong> — ${r.artist}
+          <div class="score">ความคล้าย: ${r.score}</div>`;
+        resultsDiv.appendChild(div);
+      });
+    }
+
+    document.getElementById('query').addEventListener('keydown', e => {
+      if (e.key === 'Enter') doSearch();
+    });
+  </script>
+</body>
+</html>
