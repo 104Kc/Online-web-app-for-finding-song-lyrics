@@ -97,6 +97,11 @@ def main():
     )
 
     model.save(os.path.join(args.out, "lyrics_w2v.model"))
+    np.savez_compressed(
+        os.path.join(args.out, "word_vectors.npz"),
+        vectors=model.wv.vectors,
+        vocabulary=np.array(model.wv.index_to_key),
+    )
     np.save(os.path.join(args.out, "song_vectors.npy"), song_vectors)
     df[["song_id", "title", "artist", "lyrics"]].to_csv(
         os.path.join(args.out, "songs.csv"), index=False

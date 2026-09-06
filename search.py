@@ -13,14 +13,22 @@ import os
 
 import numpy as np
 import pandas as pd
-from gensim.models import Word2Vec
+from pythainlp.tokenize import word_tokenize
 
-from train_word2vec import tokenize_lyrics, build_song_vector
+
+def tokenize_lyrics(text: str):
+    tokens = word_tokenize(str(text), engine="newmm")
+    return [token.strip() for token in tokens if token.strip()]
 
 
 class LyricsSearcher:
     def __init__(self, model_dir="output"):
-        self.model = Word2Vec.load(os.path.join(model_dir, "lyrics_w2v.model"))
+        word_data = np.load(os.path.join(model_dir, "word_vectors.npz"))
+        self.word_vectors = word_data["vectors"]
+        self.vocabulary = word_data["vocabulary"]
+        self.word_index = {
+            str(word): index for index, word in enumerate(self.vocabulary)
+        }
         self.song_vectors = np.load(os.path.join(model_dir, "song_vectors.npy"))
         self.songs = pd.read_csv(os.path.join(model_dir, "songs.csv"))
 
@@ -30,7 +38,16 @@ class LyricsSearcher:
             return []
 
         tokens = tokenize_lyrics(search_query)
-        query_vec = build_song_vector(tokens, self.model)
+        token_vectors = [
+            self.word_vectors[self.word_index[token]]
+            for token in tokens
+            if token in self.word_index
+        ]
+        query_vec = (
+            np.mean(token_vectors, axis=0)
+            if token_vectors
+            else np.zeros(self.word_vectors.shape[1])
+        )
         song_norms = np.linalg.norm(self.song_vectors, axis=1)
 
         if np.any(query_vec):

@@ -1,5 +1,4 @@
 flask
-gensim
 pythainlp
 pandas
 numpy
