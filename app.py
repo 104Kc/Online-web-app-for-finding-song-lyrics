@@ -3,15 +3,14 @@ from functools import lru_cache
 
 from flask import Flask, jsonify, render_template, request
 
-from search import LyricsSearcher
-
 app = Flask(__name__)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-searcher = None
 
 
 @lru_cache(maxsize=1)
 def get_searcher():
+    from search import LyricsSearcher
+
     return LyricsSearcher(model_dir=os.path.join(BASE_DIR, "output"))
 
 
