@@ -24,20 +24,31 @@ class LyricsSearcher:
         self.song_vectors = np.load(os.path.join(model_dir, "song_vectors.npy"))
         self.songs = pd.read_csv(os.path.join(model_dir, "songs.csv"))
 
-    def search(self, query: str, top_k: int = 5):
-        tokens = tokenize_lyrics(query)
-        query_vec = build_song_vector(tokens, self.model)
-
-        if not np.any(query_vec):
-            # None of the query's words were in the training vocabulary
+    def search(self, search_query: str, top_k: int = 5):
+        search_query = search_query.strip()
+        if not search_query:
             return []
 
+        tokens = tokenize_lyrics(search_query)
+        query_vec = build_song_vector(tokens, self.model)
         song_norms = np.linalg.norm(self.song_vectors, axis=1)
-        query_norm = np.linalg.norm(query_vec)
-        denom = song_norms * query_norm
-        denom[denom == 0] = 1e-9
 
-        sims = (self.song_vectors @ query_vec) / denom
+        if np.any(query_vec):
+            query_norm = np.linalg.norm(query_vec)
+            denom = song_norms * query_norm
+            denom[denom == 0] = 1e-9
+            lyric_sims = (self.song_vectors @ query_vec) / denom
+        else:
+            lyric_sims = np.zeros(len(self.songs))
+
+        normalized_query = search_query.casefold()
+        title_sims = self.songs["title"].fillna("").astype(str).map(
+            lambda title: 1.0 if normalized_query in title.casefold() else 0.0
+        ).to_numpy()
+        sims = np.maximum(lyric_sims, title_sims)
+
+        if not np.any(sims):
+            return []
 
         top_idx = np.argsort(-sims)[:top_k]
         results = []
@@ -45,6 +56,7 @@ class LyricsSearcher:
             row = self.songs.iloc[i]
             results.append(
                 {
+                    "song_id": int(row["song_id"]),
                     "title": row["title"],
                     "artist": row["artist"],
                     "score": round(float(sims[i]), 4),
@@ -58,7 +70,7 @@ if __name__ == "__main__":
     #   python search.py "ฝนตกที่หน้าต่างบ้านฉัน"
     import sys
 
-    query = " ".join(sys.argv[1:]) or "ฝนตกที่หน้าต่าง"
+    cli_query = " ".join(sys.argv[1:]) or "ฝนตกที่หน้าต่าง"
     searcher = LyricsSearcher()
-    for r in searcher.search(query):
+    for r in searcher.search(cli_query):
         print(f"{r['score']:.3f}  {r['title']} - {r['artist']}")

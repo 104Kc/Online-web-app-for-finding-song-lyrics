@@ -34,6 +34,35 @@ def build_song_vector(tokens, model) -> np.ndarray:
     return np.mean(vectors, axis=0)
 
 
+def load_lyrics_dataset(path: str) -> pd.DataFrame:
+    """Load the app's standard schema or the supplied Thai lyrics export."""
+    df = pd.read_csv(path)
+
+    if {"title", "artist", "lyrics"}.issubset(df.columns):
+        return df[["song_id", "title", "artist", "lyrics"]].copy()
+
+    lyrics_columns = [
+        "field_lyrics_chorus",
+        "field_lyrics_hook",
+        "field_lyrics_lead",
+    ]
+    required_columns = {"title", "field_artis", *lyrics_columns}
+    missing_columns = required_columns - set(df.columns)
+    if missing_columns:
+        missing = ", ".join(sorted(missing_columns))
+        raise ValueError(f"Dataset is missing required columns: {missing}")
+
+    lyrics = df[lyrics_columns].fillna("").astype(str).agg("\n".join, axis=1)
+    return pd.DataFrame(
+        {
+            "song_id": np.arange(1, len(df) + 1),
+            "title": df["title"].fillna(""),
+            "artist": df["field_artis"].fillna(""),
+            "lyrics": lyrics,
+        }
+    )
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", default="data/lyrics_sample.csv")
@@ -46,7 +75,7 @@ def main():
 
     os.makedirs(args.out, exist_ok=True)
 
-    df = pd.read_csv(args.data)
+    df = load_lyrics_dataset(args.data)
     print(f"Loaded {len(df)} songs from {args.data}")
 
     print("Tokenizing lyrics with PyThaiNLP...")

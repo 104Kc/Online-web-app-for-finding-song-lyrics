@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ song.title if song else 'ไม่พบเพลง' }} | เสียงในความทรงจำ</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Sarabun:wght@400;500;600;700&display=swap');
+
+    :root { --ink: #263238; --muted: #6b7777; --cream: #f6f0e6; --paper: #fffdf8; --coral: #e76f51; --teal: #176b68; --line: #e8dccd; }
+    * { box-sizing: border-box; }
+    body { min-height: 100vh; margin: 0; color: var(--ink); background: var(--cream); font-family: Sarabun, sans-serif; }
+    body::before { content: ""; position: fixed; inset: 0; pointer-events: none; opacity: .32; background: radial-gradient(circle at 12% 8%, #f2c38b 0 2px, transparent 3px), radial-gradient(circle at 88% 20%, #e76f51 0 2px, transparent 3px); background-size: 38px 38px, 52px 52px; }
+    .shell { position: relative; max-width: 980px; margin: 0 auto; padding: 34px 24px 72px; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 18px 22px; background: var(--paper); border: 1px solid var(--line); border-radius: 8px; box-shadow: 10px 10px 0 #e7d5c0; }
+    .song-heading { min-width: 0; }
+    .eyebrow { margin-bottom: 6px; color: var(--coral); font: 700 12px 'Chakra Petch', sans-serif; letter-spacing: 1px; text-transform: uppercase; }
+    h1 { overflow: hidden; margin: 0; text-overflow: ellipsis; white-space: nowrap; font: 700 clamp(25px, 4vw, 42px)/1.1 'Chakra Petch', sans-serif; }
+    .artist { margin: 5px 0 0; color: var(--muted); font-size: 17px; }
+    .actions { display: flex; flex: 0 0 auto; gap: 10px; }
+    button { border: 0; border-radius: 6px; cursor: pointer; font: 600 16px Sarabun, sans-serif; transition: transform .18s, background .18s; }
+    button:hover { transform: translateY(-2px); }
+    .favorite, .home { padding: 11px 15px; color: var(--teal); background: #e4f0eb; }
+    .favorite { color: var(--coral); }
+    .favorite.saved { color: #fff; background: var(--coral); }
+    .lyrics-card { max-width: 720px; margin: 54px auto 0; padding: 34px 42px 40px; background: var(--paper); border: 1px solid var(--line); border-radius: 8px; box-shadow: 12px 12px 0 #e7d5c0; animation: rise .4s both; }
+    .lyrics-label { margin-bottom: 22px; color: var(--coral); text-align: center; font: 700 13px 'Chakra Petch', sans-serif; letter-spacing: 1px; text-transform: uppercase; }
+    .lyrics-text { margin: 0; color: #3d4646; white-space: pre-wrap; text-align: center; font: 18px/2 Sarabun, sans-serif; }
+    .not-found { margin: 80px auto; text-align: center; }
+    .not-found a { color: var(--teal); }
+    @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+    @media (max-width: 650px) { .shell { padding: 18px 14px 48px; } .topbar { align-items: flex-start; flex-direction: column; } .actions { width: 100%; } .actions button { flex: 1; } .lyrics-card { margin-top: 34px; padding: 26px 20px 30px; } .lyrics-text { font-size: 17px; line-height: 1.85; } }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    {% if song %}
+    <header class="topbar">
+      <div class="song-heading">
+        <div class="eyebrow">กำลังอ่านเนื้อเพลง</div>
+        <h1>{{ song.title }}</h1>
+        <p class="artist">{{ song.artist }}</p>
+      </div>
+      <div class="actions">
+        <button class="favorite" id="favoriteButton" type="button" aria-label="บันทึกเพลง"></button>
+        <button class="home" id="homeButton" type="button">กลับหน้าหลัก</button>
+      </div>
+    </header>
+    <section class="lyrics-card">
+      <div class="lyrics-label">เนื้อเพลง</div>
+      <pre class="lyrics-text">{{ song.lyrics }}</pre>
+    </section>
+    {% else %}
+    <section class="not-found"><h1>ไม่พบเพลงนี้</h1><a href="/">กลับหน้าหลัก</a></section>
+    {% endif %}
+  </main>
+  {% if song %}
+  <script>
+    const song = {{ song | tojson }};
+    const favoriteButton = document.getElementById('favoriteButton');
+    let savedSongs = JSON.parse(localStorage.getItem('savedSongs') || '[]');
+
+    function isSaved() { return savedSongs.some(item => String(item.song_id) === String(song.song_id)); }
+    function updateFavorite() {
+      const saved = isSaved();
+      favoriteButton.textContent = saved ? '♥ ชอบแล้ว' : '♡ ชอบเพลงนี้';
+      favoriteButton.classList.toggle('saved', saved);
+    }
+    favoriteButton.addEventListener('click', () => {
+      if (isSaved()) savedSongs = savedSongs.filter(item => String(item.song_id) !== String(song.song_id));
+      else savedSongs.push({ song_id: song.song_id, title: song.title, artist: song.artist });
+      localStorage.setItem('savedSongs', JSON.stringify(savedSongs));
+      updateFavorite();
+    });
+    document.getElementById('homeButton').addEventListener('click', () => { window.location.href = '/'; });
+    updateFavorite();
+  </script>
+  {% endif %}
+</body>
+</html>
