@@ -1,4 +1,5 @@
 import os
+import csv
 from functools import lru_cache
 
 from flask import Flask, jsonify, render_template, request
@@ -8,10 +9,23 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 @lru_cache(maxsize=1)
+def load_song_catalog():
+    with open(os.path.join(BASE_DIR, "output", "songs.csv"), encoding="utf-8") as file:
+        return list(csv.DictReader(file))
+
+
+@lru_cache(maxsize=1)
 def get_searcher():
     from search import LyricsSearcher
 
     return LyricsSearcher(model_dir=os.path.join(BASE_DIR, "output"))
+
+
+def find_song(song_id):
+    return next(
+        (row for row in load_song_catalog() if int(row["song_id"]) == song_id),
+        None,
+    )
 
 
 @app.route("/")
@@ -21,12 +35,10 @@ def index():
 
 @app.route("/song/<int:song_id>")
 def song_page(song_id):
-    current_searcher = get_searcher()
-    matches = current_searcher.songs[current_searcher.songs["song_id"] == song_id]
-    if matches.empty:
+    row = find_song(song_id)
+    if row is None:
         return render_template("song.html", song=None), 404
 
-    row = matches.iloc[0]
     song = {
         "song_id": int(row["song_id"]),
         "title": row["title"],
@@ -41,18 +53,47 @@ def api_search():
     query = request.args.get("q", "").strip()
     if not query:
         return jsonify({"results": []})
-    results = get_searcher().search(query, top_k=5)
+
+    normalized_query = query.casefold()
+    title_matches = [
+        {
+            "song_id": int(row["song_id"]),
+            "title": row["title"],
+            "artist": row["artist"],
+            "score": 1.0,
+        }
+        for row in load_song_catalog()
+        if normalized_query in row["title"].casefold()
+    ]
+    if title_matches:
+        return jsonify({"results": title_matches[:5]})
+
+    lyric_matches = [
+        {
+            "song_id": int(row["song_id"]),
+            "title": row["title"],
+            "artist": row["artist"],
+            "score": 0.99,
+        }
+        for row in load_song_catalog()
+        if normalized_query in row["lyrics"].casefold()
+    ]
+    if lyric_matches:
+        return jsonify({"results": lyric_matches[:5]})
+
+    try:
+        results = get_searcher().search(query, top_k=5)
+    except (ImportError, KeyError, OSError, RuntimeError, ValueError):
+        results = []
     return jsonify({"results": results})
 
 
 @app.route("/api/songs/<int:song_id>")
 def api_song(song_id):
-    current_searcher = get_searcher()
-    matches = current_searcher.songs[current_searcher.songs["song_id"] == song_id]
-    if matches.empty:
+    row = find_song(song_id)
+    if row is None:
         return jsonify({"error": "Song not found"}), 404
 
-    row = matches.iloc[0]
     return jsonify(
         {
             "song_id": int(row["song_id"]),
