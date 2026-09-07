@@ -28,6 +28,46 @@ def find_song(song_id):
     )
 
 
+def normalize_lyrics(text):
+    return "".join(character for character in text.casefold() if character.isalnum())
+
+
+def lyric_similarity(query, lyrics):
+    normalized_query = normalize_lyrics(query)
+    normalized_lyrics = normalize_lyrics(lyrics)
+    if len(normalized_query) < 3 or len(normalized_lyrics) < 3:
+        return 0.0
+
+    query_grams = {
+        normalized_query[index : index + 2]
+        for index in range(len(normalized_query) - 1)
+    }
+    lyric_grams = {
+        normalized_lyrics[index : index + 2]
+        for index in range(len(normalized_lyrics) - 1)
+    }
+    shared = len(query_grams & lyric_grams)
+    recall = shared / len(query_grams)
+    precision = shared / len(lyric_grams)
+    return (2 * recall * precision) / (recall + precision) if shared else 0.0
+
+
+def lyric_matches(query):
+    matches = []
+    for row in load_song_catalog():
+        score = lyric_similarity(query, row["lyrics"])
+        if score >= 0.12:
+            matches.append(
+                {
+                    "song_id": int(row["song_id"]),
+                    "title": row["title"],
+                    "artist": row["artist"],
+                    "score": round(score, 4),
+                }
+            )
+    return sorted(matches, key=lambda result: result["score"], reverse=True)[:5]
+
+
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -68,7 +108,7 @@ def api_search():
     if title_matches:
         return jsonify({"results": title_matches[:5]})
 
-    lyric_matches = [
+    exact_lyric_matches = [
         {
             "song_id": int(row["song_id"]),
             "title": row["title"],
@@ -78,8 +118,12 @@ def api_search():
         for row in load_song_catalog()
         if normalized_query in row["lyrics"].casefold()
     ]
-    if lyric_matches:
-        return jsonify({"results": lyric_matches[:5]})
+    if exact_lyric_matches:
+        return jsonify({"results": exact_lyric_matches[:5]})
+
+    similar_lyric_matches = lyric_matches(query)
+    if similar_lyric_matches:
+        return jsonify({"results": similar_lyric_matches})
 
     try:
         results = get_searcher().search(query, top_k=5)
